@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sales Invoice Encoder</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+.container {
+    max-width: 500px;
+    margin: auto;
+}
+input, select {
+    width: 100%;
+    padding: 10px;
+    margin: 6px 0;
+}
+button {
+    width: 100%;
+    padding: 12px;
+    background: #007bff;
+    color: white;
+    border: none;
+    margin-top: 10px;
+}
+.card {
+    margin-top: 20px;
+    padding: 10px;
+    border: 1px solid #aaa;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+    <h2>Sales Invoice Encoder (Offline Ready)</h2>
+
+    <label>Date</label>
+    <input type="date" id="date">
+
+    <label>Invoice No.</label>
+    <input type="text" id="invoice">
+
+    <label>Amount</label>
+    <input type="number" id="amount">
+
+    <button onclick="saveRecord()">Save Entry</button>
+
+    <div id="output"></div>
+</div>
+
+<script>
+// Initialize local DB
+let db;
+const request = indexedDB.open("salesDB", 1);
+
+request.onupgradeneeded = e => {
+    db = e.target.result;
+    db.createObjectStore("invoices", { keyPath: "id", autoIncrement: true });
+};
+
+request.onsuccess = e => {
+    db = e.target.result;
+    loadEntries();
+};
+
+function saveRecord() {
+    const date = document.getElementById("date").value;
+    const invoice = document.getElementById("invoice").value;
+    const amount = document.getElementById("amount").value;
+
+    const tx = db.transaction("invoices", "readwrite");
+    const store = tx.objectStore("invoices");
+
+    store.add({ date, invoice, amount });
+
+    tx.oncomplete = () => {
+        alert("Saved offline!");
+        loadEntries();
+    };
+}
+
+function loadEntries() {
+    const tx = db.transaction("invoices", "readonly");
+    const store = tx.objectStore("invoices");
+
+    const req = store.getAll();
+    req.onsuccess = () => {
+        const data = req.result;
+        let html = "";
+        data.forEach(row => {
+            html += `
+            <div class="card">
+                <b>Date:</b> ${row.date}<br>
+                <b>Invoice:</b> ${row.invoice}<br>
+                <b>Amount:</b> ${row.amount}
+            </div>`;
+        });
+        document.getElementById("output").innerHTML = html;
+    };
+}
+
+// Register Service Worker
+if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js");
+}
+</script>
+
+</body>
+</html>
